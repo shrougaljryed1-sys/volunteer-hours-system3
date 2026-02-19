@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام ساعات التطوع - مدارس المنهل</title>
+    <style>
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e2eeff linear-gradient(135deg, #ffffff 0%, #d4e4f7 50%, #b8c6db 100%);
+            min-height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            overflow-x: hidden; position: relative;
+        }
+
+        /* الشعار - أعلى اليسار */
+        .header-logo {
+            position: absolute; top: 25px; left: 25px;
+            width: 140px; height: auto; z-index: 100;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .container {
+            position: relative; z-index: 5;
+            background: rgba(255, 255, 255, 0.85);
+            width: 90%; max-width: 420px;
+            padding: 35px; border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.4);
+            text-align: center;
+        }
+
+        h2 { color: #2c3e50; margin-bottom: 25px; }
+        input { width: 100%; padding: 14px; border: 2px solid #cbd5e0; border-radius: 12px; margin-bottom: 20px; outline: none; text-align: center; font-size: 16px; box-sizing: border-box; }
+        button { background: #5c6bc0; color: white; border: none; padding: 12px 40px; border-radius: 10px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.3s; width: 100%; }
+        button:hover { background: #3f51b5; transform: scale(1.03); }
+        
+        #result { margin-top: 25px; text-align: right; }
+        .progress-bar { height: 12px; background: #edf2f7; border-radius: 6px; margin: 15px 0; overflow: hidden; }
+        .fill { height: 100%; background: linear-gradient(90deg, #48bb78, #38b2ac); width: 0%; transition: width 1s ease-in-out; }
+
+        .opportunity-box {
+            margin-top: 15px; padding: 15px; background: #fff;
+            border: 1px dashed #feb2b2; border-radius: 12px; text-align: center;
+        }
+        .opportunity-link {
+            display: inline-block; margin-top: 10px; padding: 10px 20px; 
+            background-color: #e53e3e; color: white; text-decoration: none; 
+            border-radius: 8px; font-weight: bold; font-size: 13px; width: 80%;
+            transition: 0.3s;
+        }
+        .opportunity-link:hover { background-color: #c53030; transform: translateY(-2px); }
+
+        /* التذييل المتحرك */
+        .footer-marquee { position: fixed; bottom: 0; width: 100%; background: rgba(52, 73, 94, 0.9); color: white; padding: 10px 0; overflow: hidden; white-space: nowrap; z-index: 20; }
+        .marquee-content { display: inline-block; animation: marquee 20s linear infinite; font-size: 15px; font-weight: bold; }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
+        .light-bg { position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 0; overflow: hidden; }
+        .light-circle { position: absolute; background: rgba(255, 255, 255, 0.6); filter: blur(80px); border-radius: 50%; animation: move 15s infinite alternate ease-in-out; }
+        @keyframes move { 0% { transform: translate(-20%, -20%); opacity: 0.4; } 100% { transform: translate(40%, 40%); opacity: 0.8; } }
+    </style>
+</head>
+<body>
+
+    <div class="light-bg">
+        <div class="light-circle" style="width: 400px; height: 400px; top: -100px; left: -100px;"></div>
+    </div>
+
+    <img src="C:\Users\MSM\Downloads\15b573c39bf16-removebg-preview.png" alt="شعار المنهل" class="header-logo" onerror="this.style.display='none'">
+
+    <div class="container">
+        <h2>بوابة ساعات التطوع</h2>
+        <input type="text" id="userInput" placeholder="اسم الطالبة أو رقم الهوية">
+        <button onclick="search()">استعلام</button>
+        <div id="result"></div>
+    </div>
+
+    <div class="footer-marquee">
+        <div class="marquee-content">مدارس المنهل - قسم الثانوي - بنات - التعاون &nbsp;&nbsp;&nbsp;&nbsp;</div>
+    </div>
+
+    <script>
+        // رابط API الخاص بك
+        const API_URL = "https://api.sheetbest.com/sheets/36380831-e739-4cb1-816e-7028815ff509";
+
+        // روابط الفرص التي طلبتِها
+        const OPPS = [
+            { name: "الفرصة الأولى: منصة العمل التطوعي", url: "https://nvg.gov.sa/public/vol-opport/detail/4e10d38d-eb49-4353-7d81-08de66f8c372" },
+            { name: "الفرصة الثانية: منصة العمل التطوعي", url: "https://nvg.gov.sa/public/vol-opport/detail/79a49517-0aa9-4ebc-65f9-08de69fc0923" }
+        ];
+
+        async function search() {
+            const query = document.getElementById("userInput").value.trim();
+            const resDiv = document.getElementById("result");
+            if (!query) return;
+
+            resDiv.innerHTML = "<p style='text-align:center; color:#718096;'>جاري جلب أحدث البيانات...</p>";
+
+            try {
+                const freshUrl = `${API_URL}?_t=${new Date().getTime()}`;
+                const response = await fetch(freshUrl);
+                const data = await response.json();
+                
+                let totalCompleted = 0;
+                let studentName = "";
+                let found = false;
+
+                data.forEach(row => {
+                    const rowName = row["اسم الطالبة رباعي"] ? row["اسم الطالبة رباعي"].toString() : "";
+                    const rowId = row["رقم هوية الطالبة"] ? row["رقم هوية الطالبة"].toString() : "";
+                    
+                    if (rowName.includes(query) || rowId === query) {
+                        found = true;
+                        studentName = rowName;
+                        let hoursKey = Object.keys(row).find(k => k.includes("ساعة") || k.includes("ساعات"));
+                        totalCompleted += parseFloat(row[hoursKey]) || 0;
+                    }
+                });
+
+                if (found) {
+                    const goal = 40;
+                    let displayHours = totalCompleted > goal ? goal : totalCompleted;
+                    let remaining = goal - displayHours;
+                    let percentage = (displayHours / goal) * 100;
+
+                    let htmlContent = `
+                        <p><strong>الاسم:</strong> ${studentName}</p>
+                        <p><strong>إجمالي الساعات المنجزة:</strong> ${totalCompleted} ساعة</p>
+                        <p><strong>المتبقي للهدف (40 ساعة):</strong> ${remaining > 0 ? remaining : 0} ساعة</p>
+                        <div class="progress-bar"><div class="fill" style="width: ${percentage}%"></div></div>
+                    `;
+
+                    if (totalCompleted < goal) {
+                        htmlContent += `<div class="opportunity-box">
+                            <p style="color: #c53030; font-weight: bold; margin: 0;">🔥 فرص متاحة للتقديم عبر المنصة:</p>`;
+                        
+                        OPPS.forEach(opp => {
+                            htmlContent += `<a href="${opp.url}" target="_blank" class="opportunity-link">${opp.name}</a>`;
+                        });
+                        
+                        htmlContent += `</div>`;
+                    } else {
+                        htmlContent += `<p style="text-align:center; color:#2f855a; font-weight:bold;">✅ مبارك! لقد أتممتِ الساعات المطلوبة بنجاح.</p>`;
+                    }
+                    resDiv.innerHTML = htmlContent;
+                } else {
+                    resDiv.innerHTML = "<p style='color:#e53e3e; text-align:center;'>❌ لم يتم العثور على بيانات الطالبة.</p>";
+                }
+            } catch (e) {
+                resDiv.innerHTML = "<p style='color:#e53e3e; text-align:center;'>🔴 فشل الاتصال بقاعدة البيانات.</p>";
+            }
+        }
+    </script>
+</body>
+</html>
